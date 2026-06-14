@@ -22,6 +22,6 @@ bun src/main.ts download <url> --json --image --locale=en(optional)
 
 Example:
 ```bash
-bun src/main.ts download https://###.com/... --json --image
+bun src/main.ts download https://char.com/... --json --image
 ```
 
