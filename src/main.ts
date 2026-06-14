@@ -5,12 +5,17 @@ const command = args[0];
 const url = args[1];
 const saveJson = args.includes("--json");
 const saveImage = args.includes("--image");
+const locale = args.filter((item) => {return item.startsWith("--locale")})[0]
 
 type CharacterPreview = {
   title: string;
   description: string;
+  personality: string;
+  greeting: string;
   imageUrl: string;
   sourceUrl: string;
+  scenario: string;
+  creator: string;
 }
 
 type SillyTavernCard = {
@@ -19,6 +24,7 @@ type SillyTavernCard = {
   data: {
     name: string;
     description: string;
+    personality: string;
     scenario: string;
     first_mes: string;
     creator: string;
@@ -36,7 +42,7 @@ async function main() {
   }
 
   if (command === "download") {
-    await handleDownload(url, saveJson, saveImage);
+    await handleDownload(url, saveJson, saveImage, locale);
     return;
   }
 
@@ -46,14 +52,18 @@ async function main() {
 
 function help() {
   console.log("Usage:")
-  console.log("   stchar-cli download <url> --json --image")
+  console.log("   stchar-cli download <url> --json --image --locale={language}")
 }
 
-async function handleDownload(url: string | undefined, saveJson: boolean, saveImage: boolean) {
+async function handleDownload(url: string | undefined, saveJson: boolean, saveImage: boolean, locale: string | undefined) {
   if (!url) {
     console.log("Error not found url");
     help();
     return;
+  }
+
+  if (!locale) {
+    console.log("Not found locale it gonna use default(th)")
   }
 
   console.log("Url detected");
@@ -62,7 +72,7 @@ async function handleDownload(url: string | undefined, saveJson: boolean, saveIm
   console.log(`saveImage: ${saveImage}`);
 
   console.log("fetching html...");
-  const html = await fetchHtml(url);
+  const html = await fetchCharacterJson(url,locale);
   console.log("html loaded");
   console.log(`html length: ${html.length}`);
 
@@ -76,27 +86,15 @@ async function handleDownload(url: string | undefined, saveJson: boolean, saveIm
   const sillytavern = createSillyTavernCard(PreviewCharacter);
   const json = JSON.stringify(sillytavern, null, 2);
 
-  console.log("JSON preview:");
-  console.log(json);
-  console.log(html.includes("section-bio"));
-  console.log("has section-bio:", html.includes("section-bio"));
-  console.log("has character text:", html.includes("รินรดา"));
-  console.log("has greeting text:", html.includes("ท่านประธาน"));
-  
-  const keyword = "รินรดา";
-  const index = html.indexOf(keyword);
-
-  console.log("keyword index:", index);
-
-  if (index !== -1) {
-    console.log(html.slice(index - 300, index + 500));
-  }
-
+  const response = await fetch(
+  `https://khuiai-backend-865395639088.asia-southeast1.run.app/api/v1/characters/6a1ee874320247f3b2f0b5cf?`
+  );
 
   if (saveJson){
     const filename = sanitizeFilename(PreviewCharacter.title);
     await mkdir("output",{recursive:true});
-    writeFile(`output/${filename}.json`,json,"utf-8");
+    await mkdir(`output/${filename}`, {recursive:true})
+    await writeFile(`output/${filename}/${filename}.json`,json,"utf-8");
 
     console.log("json saved");
   }
@@ -107,9 +105,10 @@ async function handleDownload(url: string | undefined, saveJson: boolean, saveIm
     }
 
     const filename = sanitizeFilename(PreviewCharacter.title);
-    const imagePath = `output/${filename}.jpg`;
+    const imagePath = `output/${filename}/${filename}.jpg`;
 
     await mkdir("output", { recursive: true });
+    await mkdir(`output/${filename}`, {recursive:true})
 
     console.log("Downloading image...");
     await downloadImage(PreviewCharacter.imageUrl, imagePath);
@@ -122,25 +121,31 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[\/\\?%*:|"<>]/g, "-").trim();
 }
 
-async function fetchHtml(url: string): Promise<string> {
-  const response = await fetch(url);
+async function fetchCharacterJson(url: string, locale: string | undefined): Promise<string> {
+  const api = 'https://khuiai-backend-865395639088.asia-southeast1.run.app/api/v1/characters/'
+  let response = await fetch(api+url.split('/')[url.split('/').length-1]+"?locale="+locale?.split('=')[1]);
+  if (!locale){
+    response = await fetch(api+url.split('/')[url.split('/').length-1]);
+  }
 
   if (!response.ok) {
     throw new Error(`failed to fetch url status: ${response.status}`);
   }
 
   const html = await response.text();
+
   return html;
+  
 }
 
 function extractTitle(html: string): string {
-  const match = html.match(/<title>(.*?)<\/title>/i);
-
-  if (!match || !match[1]) {
+  const JsonObj = JSON.parse(html);
+  const match = JsonObj.data.name.split('|')[0];
+  if (!match) {
     return "Untitled";
   }
 
-  return match[1].trim();
+  return match;
 }
 
 function decodeHtmlEntities(text: string): string {
@@ -149,31 +154,73 @@ function decodeHtmlEntities(text: string): string {
     .replaceAll("&amp;", "&")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
-    .replaceAll("&#39;", "'");
+    .replaceAll("&#39;", "'")
 }
 
 function extractImageUrl(html: string): string | undefined {
-  const match = html.match(
-    /<meta property="og:image" content="([^"]+)"/i,
-  );
+  const JsonObj = JSON.parse(html)
+  const match = JsonObj.data.image;
 
   if (!match) {
     return undefined;
   }
 
-  return match[1];
+  return match;
+}
+
+function extractGreeting(html: string): string | undefined {
+  const JsonObj = JSON.parse(html);
+  const match = JsonObj.data.greeting;
+
+  if(!match) {
+    return undefined 
+  }
+
+  return decodeHtmlEntities(match);
+}
+
+function extractPersonality(html: string): string | undefined {
+  const JsonObj = JSON.parse(html);
+  const match = JsonObj.data.bio;
+
+  if(!match) {
+    return undefined
+  }
+
+  return decodeHtmlEntities(match);
 }
 
 function extractDescription(html: string): string | undefined {
-  const match = html.match(
-    /<meta property="og:description" content="([^"]+)"/i,
-  );
+  const JsonObj = JSON.parse(html);
+  const match = JsonObj.data.tagline;
 
   if (!match) {
     return undefined;
   }
 
-  return decodeHtmlEntities(match[1]!);
+  return decodeHtmlEntities(match);
+}
+
+function extractScenario(html: string): string | undefined {
+  const JsonObj = JSON.parse(html);
+  const match = JsonObj.data.defaultSituationId.situationDetail
+
+  if (!match) {
+    return undefined
+  }
+
+  return decodeHtmlEntities(match);
+}
+
+function extractCreator(html: string): string | undefined {
+  const JsonObj = JSON.parse(html);
+  const match = JsonObj.data.creator.username
+
+  if (!match) {
+    return undefined
+  }
+
+  return match
 }
 
 function extractCharacterName(title: string): string {
@@ -192,7 +239,7 @@ async function downloadImage(url: string,path: string){
 
   const imageData = await response.arrayBuffer();
 
-  writeFile(path,Buffer.from(imageData));
+  await writeFile(path,Buffer.from(imageData));
 }
 
 function extractCharacterPreview(html: string, sourceUrl: string): CharacterPreview {
@@ -200,12 +247,20 @@ function extractCharacterPreview(html: string, sourceUrl: string): CharacterPrev
   const description = extractDescription(html) ?? "";
   const imageUrl = extractImageUrl(html) ?? "";
   const name = extractCharacterName(title);
+  const greeting = extractGreeting(html) ?? "";
+  const personality = extractPersonality(html) ?? "";
+  const scenario = extractScenario(html) ?? "";
+  const creator = extractCreator(html) ?? "";
 
   return {
     title: name,
     description,
+    personality,
     imageUrl,
-    sourceUrl
+    sourceUrl,
+    greeting,
+    scenario,
+    creator
   };
 }
 
@@ -218,9 +273,10 @@ function createSillyTavernCard(
     data: {
       name: character.title,
       description: character.description,
-      scenario: "",
-      first_mes: "",
-      creator: "",
+      personality: character.personality,
+      scenario: character.scenario,
+      first_mes: character.greeting,
+      creator: character.creator,
       extensions: {
         sourceUrl: character.sourceUrl,
         imageUrl: character.imageUrl,
