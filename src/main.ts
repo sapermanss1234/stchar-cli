@@ -86,10 +86,6 @@ async function handleDownload(url: string | undefined, saveJson: boolean, saveIm
   const sillytavern = createSillyTavernCard(PreviewCharacter);
   const json = JSON.stringify(sillytavern, null, 2);
 
-  const response = await fetch(
-  `https://khuiai-backend-865395639088.asia-southeast1.run.app/api/v1/characters/6a1ee874320247f3b2f0b5cf?`
-  );
-
   if (saveJson){
     const filename = sanitizeFilename(PreviewCharacter.title);
     await mkdir("output",{recursive:true});
@@ -132,9 +128,9 @@ async function fetchCharacterJson(url: string, locale: string | undefined): Prom
     throw new Error(`failed to fetch url status: ${response.status}`);
   }
 
-  const html = await response.text();
+  const JsonString = await response.text();
 
-  return html;
+  return JsonString;
   
 }
 
