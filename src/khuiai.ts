@@ -19,7 +19,7 @@ export async function fetchCharacterJson(
     api +
       url.split("/")[url.split("/").length - 1] +
       "?locale=" +
-      locale?.split("=")[1],
+      locale,
   );
   if (!locale) {
     response = await fetch(api + url.split("/")[url.split("/").length - 1]);

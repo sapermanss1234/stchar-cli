@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import type { CharacterPreview, SillyTavernCard } from "./types";
 import { extractCharacterPreview, fetchCharacterJson } from "./khuiai";
+import { interactiveOption } from "./interactive";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -12,18 +13,24 @@ const locale = args.filter((item) => {
 })[0];
 
 async function main() {
-  if (!command) {
+  if (args.length === 0) {
+    const option = await interactiveOption();
+    await handleDownload(
+      option.url,
+      option.saveJson,
+      option.saveImage,
+      option.locale,
+    );
+  } else {
+    if (command === "download") {
+      const newlocale = locale?.split("=")[1];
+      await handleDownload(url, saveJson, saveImage, newlocale);
+      return;
+    }
+
+    console.log("Unknown command");
     help();
-    return;
   }
-
-  if (command === "download") {
-    await handleDownload(url, saveJson, saveImage, locale);
-    return;
-  }
-
-  console.log("Unknown command");
-  help();
 }
 
 function help() {
