@@ -1,7 +1,11 @@
 import { mkdir, writeFile } from "fs/promises";
 import type { CharacterPreview, SillyTavernCard } from "./types";
-import { extractCharacterPreview, fetchCharacterJson } from "./khuiai";
+import {
+  extractCharacterPreview,
+  fetchKhuiaiCharacter,
+} from "./providers/khuiai";
 import { interactiveOption } from "./interactive";
+import { fetchJoyladaCharacter } from "./providers/joylada";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -61,12 +65,24 @@ async function handleDownload(
   console.log(`saveJson: ${saveJson}`);
   console.log(`saveImage: ${saveImage}`);
 
-  console.log("fetching JSON...");
-  const data = await fetchCharacterJson(url, locale);
-  console.log("data loaded");
-  console.log(`data length: ${data.length}`);
+  let PreviewCharacter: CharacterPreview;
 
-  const PreviewCharacter = extractCharacterPreview(data, url);
+  if (url.includes("khuiai")) {
+    console.log("fetching JSON...");
+    const data = await fetchKhuiaiCharacter(url, locale);
+    console.log("data loaded");
+    console.log(`data length: ${data.length}`);
+    PreviewCharacter = extractCharacterPreview(data, url);
+  } else if (url.includes("joylada")) {
+    console.log("fetching JSON...");
+    PreviewCharacter = await fetchJoyladaCharacter(url);
+    console.log("data loaded");
+  }else {
+    throw new Error("Unsupported provider");
+  }
+
+  console.log(PreviewCharacter)
+
   console.log("Charcter data:");
   console.log(`title: ${PreviewCharacter.title}`);
   console.log(`description: ${PreviewCharacter.description}`);

@@ -1,4 +1,4 @@
-import type {CharacterPreview} from "./types"
+import type { CharacterPreview } from "../types";
 
 function decodeHtmlEntities(text: string): string {
   return text
@@ -9,17 +9,14 @@ function decodeHtmlEntities(text: string): string {
     .replaceAll("&#39;", "'");
 }
 
-export async function fetchCharacterJson(
+export async function fetchKhuiaiCharacter(
   url: string,
   locale: string | undefined,
 ): Promise<string> {
   const api =
     "https://khuiai-backend-865395639088.asia-southeast1.run.app/api/v1/characters/";
   let response = await fetch(
-    api +
-      url.split("/")[url.split("/").length - 1] +
-      "?locale=" +
-      locale,
+    api + url.split("/")[url.split("/").length - 1] + "?locale=" + locale,
   );
   if (!locale) {
     response = await fetch(api + url.split("/")[url.split("/").length - 1]);
