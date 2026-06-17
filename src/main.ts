@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import type { CharacterPreview, SillyTavernCard } from "./types";
 import {
-  extractCharacterPreview,
   fetchKhuiaiCharacter,
 } from "./providers/khuiai";
 import { interactiveOption } from "./interactive";
@@ -69,10 +68,8 @@ async function handleDownload(
 
   if (url.includes("khuiai")) {
     console.log("fetching JSON...");
-    const data = await fetchKhuiaiCharacter(url, locale);
+    PreviewCharacter = await fetchKhuiaiCharacter(url, locale);
     console.log("data loaded");
-    console.log(`data length: ${data.length}`);
-    PreviewCharacter = extractCharacterPreview(data, url);
   } else if (url.includes("joylada")) {
     console.log("fetching JSON...");
     PreviewCharacter = await fetchJoyladaCharacter(url);
