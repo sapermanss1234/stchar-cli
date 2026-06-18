@@ -1,10 +1,12 @@
 import { mkdir, writeFile } from "fs/promises";
-import type { CharacterPreview, SillyTavernCard } from "./types";
-import {
-  fetchKhuiaiCharacter,
-} from "./providers/khuiai";
+import type { CharacterPreview } from "./types";
+import { fetchKhuiaiCharacter } from "./providers/khuiai";
 import { interactiveOption } from "./interactive";
 import { fetchJoyladaCharacter } from "./providers/joylada";
+import { showMainMenu, showRepeat } from "./menu";
+import { createSillyTavernCard } from "./converters/sillytavern";
+import { sanitizeFilename } from "./utils";
+import { downloadImage } from "./utils/image";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -17,13 +19,27 @@ const locale = args.filter((item) => {
 
 async function main() {
   if (args.length === 0) {
-    const option = await interactiveOption();
-    await handleDownload(
-      option.url,
-      option.saveJson,
-      option.saveImage,
-      option.locale,
-    );
+    while (true) {
+      const menu = await showMainMenu();
+      if (menu === "download") {
+        const option = await interactiveOption();
+        await handleDownload(
+          option.url,
+          option.saveJson,
+          option.saveImage,
+          option.locale,
+        );
+
+        switch (await showRepeat()) {
+          case "back":
+            continue;
+          case "exit":
+            process.exit(1);
+        }
+      } else if (menu === "exit") {
+        process.exit(1);
+      }
+    }
   } else {
     if (command === "download") {
       const newlocale = locale?.split("=")[1];
@@ -74,11 +90,11 @@ async function handleDownload(
     console.log("fetching JSON...");
     PreviewCharacter = await fetchJoyladaCharacter(url);
     console.log("data loaded");
-  }else {
+  } else {
     throw new Error("Unsupported provider");
   }
 
-  console.log(PreviewCharacter)
+  console.log(PreviewCharacter);
 
   console.log("Charcter data:");
   console.log(`title: ${PreviewCharacter.title}`);
@@ -114,40 +130,6 @@ async function handleDownload(
 
     console.log(`Image saved: ${imagePath}`);
   }
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[\/\\?%*:|"<>]/g, "-").trim();
-}
-
-async function downloadImage(url: string, path: string) {
-  const response = await fetch(url);
-
-  if (!response.ok)
-    throw new Error(`Failed to downloade Image status: ${response.status}`);
-
-  const imageData = await response.arrayBuffer();
-
-  await writeFile(path, Buffer.from(imageData));
-}
-
-function createSillyTavernCard(character: CharacterPreview): SillyTavernCard {
-  return {
-    spec: "chara_card_v2",
-    spec_version: "2.0",
-    data: {
-      name: character.title,
-      description: character.description,
-      personality: character.personality,
-      scenario: character.scenario,
-      first_mes: character.greeting,
-      creator: character.creator,
-      extensions: {
-        sourceUrl: character.sourceUrl,
-        imageUrl: character.imageUrl,
-      },
-    },
-  };
 }
 
 await main();
