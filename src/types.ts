@@ -25,3 +25,24 @@ export type SillyTavernCard = {
     };
   };
 };
+
+export type Screen = "menu" | "download" | "setting";
+
+export interface Config {
+  saveJson: boolean;
+  saveImage: boolean;
+  locale: string;
+}
+
+export interface ScreenProps {
+  setScreen: (screen: Screen) => void;
+}
+
+export interface SettingProps extends ScreenProps {
+  config: Config;
+  setConfig: (config: Config) => void;
+}
+
+export interface DownloadProps extends ScreenProps {
+  config: Config;
+}
